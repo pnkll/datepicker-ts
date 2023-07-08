@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": ".",
+    "module": "ESNext",
+    "target": "ES5",
+    "allowSyntheticDefaultImports": true,
+    "allowJs": false,
+    "jsx": "react-jsx",
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "plugins": [
+      { "name": "typescript-plugin-css-modules" }
+    ]
+  },
+  "include": ["src", "config"],
+  "exclude": ["node_modules", "dist"]
+}

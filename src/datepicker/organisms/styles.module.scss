@@ -1,0 +1,11 @@
+.date-cells{
+  display: grid;
+  grid-template-columns: repeat(7,1fr);
+  grid-template-rows: repeat(7,1fr);
+
+  width: 700px;
+  height: 700px;
+  &__item{
+    border: 1px solid lightgray;
+  }
+}
