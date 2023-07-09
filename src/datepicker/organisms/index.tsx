@@ -1,5 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect, useLayoutEffect } from 'react';
 import s from './styles.module.scss';
+import classNames from 'classnames/bind';
+import {
+  DateCell,
+  daysOfTheWeek,
+  getCurrentMonthDateCells,
+  getDaysAmountInAMonth,
+  getNextMonthDateCells,
+  getPrevMonthDateCells,
+  months,
+} from '../utils';
+const cx = classNames.bind(s);
+
 interface DatepickerProps {
   value: Date;
   onChange: (value: Date) => void;
@@ -7,104 +19,121 @@ interface DatepickerProps {
   max?: Date;
 }
 
-const months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
+const validValueRegex = /^\d{2}-\d{2}-\d{4}$/;
 
-interface DateCell {
-  year: number;
-  month: number;
-  date: number;
+function isValidDateString(value: string) {
+  if (!validValueRegex.test(value)) return false;
 
-  isToday?: boolean;
-  isSelected?: boolean;
+  const [date, month, year] = value.split('-').map((v) => parseInt(v, 10));
+
+  if (month < 1 || month > 12 || date < 1) return false;
+
+  const maxDaysInAMonth = getDaysAmountInAMonth(year, month - 1);
+
+  if (date > maxDaysInAMonth) return false;
+
+  return true;
 }
 
-function getDaysAmountInAMonth(year: number, month: number) {
-  const nextMonthDate = new Date(year, month + 1, 1);
-  nextMonthDate.setMinutes(-1);
-  return nextMonthDate.getDate();
-}
-
-function getCurrentMonthDateCells(year: number, month: number): DateCell[] {
-  const dateCells: DateCell[] = [];
-
-  const amountOfDays = getDaysAmountInAMonth(year, month);
-
-  for (let i = 1; i <= amountOfDays; i++) {
-    dateCells.push({
-      year,
-      month,
-      date: i,
-    });
-  }
-
-  return dateCells;
-}
-function getPrevMonthDateCells(year: number, month: number): DateCell[] {
-  const currentMonthFirstDay = new Date(year, month, 1);
-  const dayOfTheWeek = currentMonthFirstDay.getDay();
-  const prevMonthDateCellsAmount = dayOfTheWeek - 1;
-
-  const amountOfDaysInPrevMonth = getDaysAmountInAMonth(year, month - 1);
-
-  const dateCells: DateCell[] = [];
-
-  const [cellYear, cellMonth] = month === 0 ? [year - 1, 11] : [year, month - 1];
-
-  for (let i = 0; i < prevMonthDateCellsAmount; i++) {
-    dateCells.push({
-      year: cellYear,
-      month: cellMonth,
-      date: amountOfDaysInPrevMonth - i,
-    });
-  }
-
-  return dateCells;
-}
-const VISIBLE_CELLS_AMOUNT = 7 * 6;
-function getNextMonthDateCells(year: number, month: number): DateCell[] {
-  //TODO - copy paste
-  const currentMonthFirstDay = new Date(year, month, 1);
-  const dayOfTheWeek = currentMonthFirstDay.getDay();
-  const prevMonthDaysAmount = dayOfTheWeek - 1;
-  //TODO - end copy paste
-
-  const daysAmount = getDaysAmountInAMonth(year, month);
-
-  const dateCells: DateCell[] = [];
-
-  const [cellYear, cellMonth] = month === 11 ? [year + 1, 0] : [year, month + 1];
-
-  const nextMonthDaysAmount = VISIBLE_CELLS_AMOUNT - daysAmount - prevMonthDaysAmount;
-
-  for (let i = 1; i <= nextMonthDaysAmount; i++) {
-    dateCells.push({ year: cellYear, month: cellMonth, date: i });
-  }
-
-  return dateCells;
-}
 export function Datepicker(props: DatepickerProps) {
   const { value, onChange, min, max } = props;
 
-  const [panelYear] = useState(() => value.getFullYear());
-  const [panelMonth] = useState(() => value.getMonth());
+  const [showPopup, setShowPopup] = useState(false);
+  const [inputValue, setInputValue] = useState('');
 
-  const [year, month, day] = useMemo(() => {
+  const elementRef = useRef<HTMLDivElement>(null);
+  function onFocus() {
+    setShowPopup(true);
+  }
+
+  function onBlur() {
+    if (!isValidDateString(inputValue)) {
+      // TODO - copy paste
+      const year = value.getFullYear();
+      const monthValue = value.getMonth() + 1;
+      const month = monthValue < 10 ? `0${monthValue}` : monthValue;
+      const dateValue = value.getDate();
+      const date = dateValue < 10 ? `0${dateValue}` : dateValue;
+      // TODO - end copy paste
+      setInputValue(`${date}-${month}-${year}`);
+      return;
+    }
+
+    const [date, month, year] = inputValue.split('-').map((v) => parseInt(v, 10));
+
+    const dateObj = new Date(year, month - 1, date);
+
+    onChange(dateObj);
+  }
+
+  function onInputChange(e) {
+    setInputValue(e.target.value.trim());
+  }
+
+  useLayoutEffect(() => {
+    const year = value.getFullYear();
+    const monthValue = value.getMonth() + 1;
+    const month = monthValue < 10 ? `0${monthValue}` : monthValue;
+    const dateValue = value.getDate();
+    const date = dateValue < 10 ? `0${dateValue}` : dateValue;
+
+    setInputValue(`${date}-${month}-${year}`);
+  }, [value]);
+
+  useEffect(() => {
+    const element = elementRef.current;
+
+    if (!element) return;
+
+    function onDocumentClick(e: MouseEvent) {
+      const target = e.target;
+      if (!(target instanceof Node)) return;
+
+      if (element.contains(target)) return;
+
+      setShowPopup(false);
+    }
+
+    document.addEventListener('click', onDocumentClick);
+
+    return () => document.removeEventListener('click', onDocumentClick);
+  }, []);
+
+  return (
+    <>
+      <div ref={elementRef} style={{ width: 'fit-content', position: 'relative' }}>
+        <input
+          type={'text'}
+          onFocus={onFocus}
+          value={inputValue}
+          onChange={onInputChange}
+          onBlur={onBlur}
+        />
+        <div style={{ position: 'absolute', left: 0, top: '100%' }}>
+          {showPopup && (
+            <DatepickerPopupContent
+              value={value}
+              onChange={onChange}
+              min={min}
+              max={max}
+            />
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function DatepickerPopupContent(props: DatepickerProps) {
+  const { value, onChange, min, max } = props;
+
+  const [panelYear, setPanelYear] = useState(() => value.getFullYear());
+  const [panelMonth, setPanelMonth] = useState(() => value.getMonth());
+
+  const [year, month, date] = useMemo(() => {
     const currentYear = value.getFullYear();
     const currentDay = value.getDate();
-    const currentMonth = months[value.getMonth()];
+    const currentMonth = value.getMonth();
 
     return [currentYear, currentMonth, currentDay];
   }, [value]);
@@ -123,22 +152,67 @@ export function Datepicker(props: DatepickerProps) {
     return cells;
   }, [panelYear, panelMonth]);
 
-  function nextYear() {}
-  function nextMonth() {}
+  function onDateSelect(cellValue: DateCell) {
+    const value = new Date(cellValue.year, cellValue.month, cellValue.date);
 
-  function prevYear() {}
-  function prevMonth() {}
+    onChange(value);
+  }
+
+  function nextYear() {
+    setPanelYear((year) => year + 1);
+  }
+  function nextMonth() {
+    if (panelMonth === 11) {
+      setPanelYear((year) => year + 1);
+      setPanelMonth(0);
+    } else {
+      setPanelMonth((month) => month + 1);
+    }
+  }
+
+  function prevYear() {
+    setPanelYear((year) => year - 1);
+  }
+  function prevMonth() {
+    if (panelMonth === 0) {
+      setPanelMonth(11);
+      setPanelYear((year) => year - 1);
+    } else {
+      setPanelMonth((month) => month - 1);
+    }
+  }
 
   return (
     <>
       <div>
         <div>
-          {year} {month} {day}
+          {months[panelMonth]} {panelYear}
+        </div>
+        <div className={s['control-section']}>
+          <button onClick={prevYear}>prevYear</button>
+          <button onClick={prevMonth}>prevMonth</button>
+          <button onClick={nextMonth}>nextMonth</button>
+          <button onClick={nextYear}>nextYear</button>
         </div>
         <div className={s['date-cells']}>
-          {dateCells.map((cell) => (
-            <div className={s['date-cells__item']}>{cell.date}</div>
+          {daysOfTheWeek.map((weekDay) => (
+            <div key={weekDay} className={s['date-cells__item']}>
+              {weekDay}
+            </div>
           ))}
+          {dateCells.map((cell) => {
+            const isSelectedDate =
+              cell.year === year && cell.month === month && cell.date === date;
+            return (
+              <div
+                key={`${cell.year}-${cell.month}-${cell.date}`}
+                className={cx(s['date-cells__item'], { selected: isSelectedDate })}
+                onClick={() => onDateSelect(cell)}
+              >
+                {cell.date}
+              </div>
+            );
+          })}
         </div>
       </div>
     </>
