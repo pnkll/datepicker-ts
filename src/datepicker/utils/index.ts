@@ -102,3 +102,44 @@ export function getNextMonthDateCells(year: number, month: number): DateCell[] {
 
   return dateCells;
 }
+
+const validValueRegex = /^\d{2}-\d{2}-\d{4}$/;
+
+export function isValidDateString(value: string) {
+  if (!validValueRegex.test(value)) return false;
+
+  const [date, month, year] = value.split('-').map((v) => parseInt(v, 10));
+
+  if (month < 1 || month > 12 || date < 1) return false;
+
+  const maxDaysInAMonth = getDaysAmountInAMonth(year, month - 1);
+
+  if (date > maxDaysInAMonth) return false;
+
+  return true;
+}
+
+export function addLeadingZeroIfNeeded(value) {
+  if (value > 9) return value;
+  return `0${value}`;
+}
+
+export function getInputValueFromDate(value) {
+  const year = value.getFullYear();
+  const month = addLeadingZeroIfNeeded(value.getMonth() + 1);
+  const date = addLeadingZeroIfNeeded(value.getDate());
+
+  return `${date}-${month}-${year}`;
+}
+
+export function getDateFromInputValue(inputValue: string) {
+  if (!isValidDateString(inputValue)) {
+    return;
+  }
+
+  const [date, month, year] = inputValue.split('-').map((v) => parseInt(v, 10));
+
+  const dateObj = new Date(year, month - 1, date);
+
+  return dateObj;
+}

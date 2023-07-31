@@ -2,12 +2,16 @@ import { useMemo, useState, useRef, useEffect, useLayoutEffect } from 'react';
 import s from './styles.module.scss';
 import classNames from 'classnames/bind';
 import {
+  addLeadingZeroIfNeeded,
   DateCell,
   daysOfTheWeek,
   getCurrentMonthDateCells,
+  getDateFromInputValue,
   getDaysAmountInAMonth,
+  getInputValueFromDate,
   getNextMonthDateCells,
   getPrevMonthDateCells,
+  isValidDateString,
   months,
 } from '../utils';
 const cx = classNames.bind(s);
@@ -19,20 +23,13 @@ interface DatepickerProps {
   max?: Date;
 }
 
-const validValueRegex = /^\d{2}-\d{2}-\d{4}$/;
+function useLatest<T>(value: T) {
+  const valueRef = useRef(value);
 
-function isValidDateString(value: string) {
-  if (!validValueRegex.test(value)) return false;
-
-  const [date, month, year] = value.split('-').map((v) => parseInt(v, 10));
-
-  if (month < 1 || month > 12 || date < 1) return false;
-
-  const maxDaysInAMonth = getDaysAmountInAMonth(year, month - 1);
-
-  if (date > maxDaysInAMonth) return false;
-
-  return true;
+  useLayoutEffect(() => {
+    valueRef.current = value;
+  }, [value]);
+  return valueRef;
 }
 
 export function Datepicker(props: DatepickerProps) {
@@ -41,29 +38,35 @@ export function Datepicker(props: DatepickerProps) {
   const [showPopup, setShowPopup] = useState(false);
   const [inputValue, setInputValue] = useState('');
 
+  const latestInputValue = useLatest(inputValue);
+  const latestValue = useLatest(value);
+
   const elementRef = useRef<HTMLDivElement>(null);
-  function onFocus() {
+  function onInputClick() {
     setShowPopup(true);
   }
 
-  function onBlur() {
-    if (!isValidDateString(inputValue)) {
-      // TODO - copy paste
-      const year = value.getFullYear();
-      const monthValue = value.getMonth() + 1;
-      const month = monthValue < 10 ? `0${monthValue}` : monthValue;
-      const dateValue = value.getDate();
-      const date = dateValue < 10 ? `0${dateValue}` : dateValue;
-      // TODO - end copy paste
-      setInputValue(`${date}-${month}-${year}`);
-      return;
+  function handleChange(value: Date) {
+    onChange(value);
+    setShowPopup(false);
+  }
+
+  const inputValueDate = useMemo(() => {
+    return getDateFromInputValue(inputValue);
+  }, [inputValue]);
+
+  function onBlur(): void {}
+
+  function onKeyDown(e) {
+    if (e.key !== 'Enter') return;
+    const date = getDateFromInputValue(inputValue);
+
+    if (!date) {
+      setInputValue(getInputValueFromDate(value));
+    } else {
+      handleChange(date);
     }
-
-    const [date, month, year] = inputValue.split('-').map((v) => parseInt(v, 10));
-
-    const dateObj = new Date(year, month - 1, date);
-
-    onChange(dateObj);
+    setShowPopup(false);
   }
 
   function onInputChange(e) {
@@ -71,13 +74,8 @@ export function Datepicker(props: DatepickerProps) {
   }
 
   useLayoutEffect(() => {
-    const year = value.getFullYear();
-    const monthValue = value.getMonth() + 1;
-    const month = monthValue < 10 ? `0${monthValue}` : monthValue;
-    const dateValue = value.getDate();
-    const date = dateValue < 10 ? `0${dateValue}` : dateValue;
-
-    setInputValue(`${date}-${month}-${year}`);
+    const inputValue = getInputValueFromDate(value);
+    setInputValue(inputValue);
   }, [value]);
 
   useEffect(() => {
@@ -91,29 +89,37 @@ export function Datepicker(props: DatepickerProps) {
 
       if (element.contains(target)) return;
 
+      const dateFromInputValue = getDateFromInputValue(latestInputValue.current);
+      if (dateFromInputValue) {
+        onChange(dateFromInputValue);
+      } else {
+        setInputValue(getInputValueFromDate(latestValue.current));
+      }
       setShowPopup(false);
     }
 
     document.addEventListener('click', onDocumentClick);
 
     return () => document.removeEventListener('click', onDocumentClick);
-  }, []);
+  }, [latestInputValue, latestValue]);
 
   return (
     <>
       <div ref={elementRef} style={{ width: 'fit-content', position: 'relative' }}>
         <input
           type={'text'}
-          onFocus={onFocus}
+          onClick={onInputClick}
           value={inputValue}
           onChange={onInputChange}
-          onBlur={onBlur}
+          // onBlur={onBlur}
+          onKeyDown={onKeyDown}
         />
         <div style={{ position: 'absolute', left: 0, top: '100%' }}>
           {showPopup && (
             <DatepickerPopupContent
-              value={value}
-              onChange={onChange}
+              selectedValue={value}
+              inputValueDate={inputValueDate}
+              onChange={handleChange}
               min={min}
               max={max}
             />
@@ -124,19 +130,37 @@ export function Datepicker(props: DatepickerProps) {
   );
 }
 
-function DatepickerPopupContent(props: DatepickerProps) {
-  const { value, onChange, min, max } = props;
+interface DatePickerPopupContentProps {
+  selectedValue: Date;
+  inputValueDate: Date;
+  min?: Date;
+  max?: Date;
+  onChange: (value: Date) => void;
+}
 
-  const [panelYear, setPanelYear] = useState(() => value.getFullYear());
-  const [panelMonth, setPanelMonth] = useState(() => value.getMonth());
+function DatepickerPopupContent(props: DatePickerPopupContentProps) {
+  const { selectedValue, inputValueDate, onChange, min, max } = props;
+
+  const [panelYear, setPanelYear] = useState(() => selectedValue.getFullYear());
+  const [panelMonth, setPanelMonth] = useState(() => selectedValue.getMonth());
+
+  useLayoutEffect(() => {
+    if (!inputValueDate) return;
+
+    const year = inputValueDate.getFullYear();
+    const month = inputValueDate.getMonth();
+
+    setPanelMonth(month);
+    setPanelYear(year);
+  }, [inputValueDate]);
 
   const [year, month, date] = useMemo(() => {
-    const currentYear = value.getFullYear();
-    const currentDay = value.getDate();
-    const currentMonth = value.getMonth();
+    const currentYear = selectedValue.getFullYear();
+    const currentDay = selectedValue.getDate();
+    const currentMonth = selectedValue.getMonth();
 
     return [currentYear, currentMonth, currentDay];
-  }, [value]);
+  }, [selectedValue]);
 
   const dateCells: DateCell[] = useMemo(() => {
     const prevMonthDateCells = getPrevMonthDateCells(panelYear, panelMonth);
