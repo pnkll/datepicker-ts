@@ -31,6 +31,7 @@ export interface DateCell {
   year: number;
   month: number;
   date: number;
+  type: 'next' | 'prev' | 'current';
 
   isToday?: boolean;
   isSelected?: boolean;
@@ -58,6 +59,7 @@ export function getCurrentMonthDateCells(year: number, month: number): DateCell[
       year,
       month,
       date: i,
+      type: 'current',
     });
   }
 
@@ -78,6 +80,7 @@ export function getPrevMonthDateCells(year: number, month: number): DateCell[] {
       year: cellYear,
       month: cellMonth,
       date: amountOfDaysInPrevMonth - i,
+      type: 'prev',
     });
   }
 
@@ -97,7 +100,7 @@ export function getNextMonthDateCells(year: number, month: number): DateCell[] {
   const nextMonthDaysAmount = VISIBLE_CELLS_AMOUNT - daysAmount - prevMonthDaysAmount;
 
   for (let i = 1; i <= nextMonthDaysAmount; i++) {
-    dateCells.push({ year: cellYear, month: cellMonth, date: i });
+    dateCells.push({ year: cellYear, month: cellMonth, date: i, type: 'next' });
   }
 
   return dateCells;

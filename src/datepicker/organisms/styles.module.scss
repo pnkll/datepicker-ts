@@ -7,8 +7,18 @@
   height: 700px;
   &__item{
     border: 1px solid lightgray;
+    &.date{
+    cursor: pointer;
+
+    }
     &.selected{
       color: red;
+    }
+    &.today{
+      background: lightgray;
+    }
+    &.prev, &.next{
+      background: darkgray;
     }
   }
 }

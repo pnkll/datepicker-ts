@@ -32,6 +32,15 @@ function useLatest<T>(value: T) {
   return valueRef;
 }
 
+function isToday(cell: DateCell) {
+  const today = new Date();
+  const isTodayDate =
+    today.getMonth() === cell.month &&
+    today.getFullYear() === cell.year &&
+    today.getDate() === cell.date;
+  return isTodayDate;
+}
+
 export function Datepicker(props: DatepickerProps) {
   const { value, onChange, min, max } = props;
 
@@ -227,10 +236,16 @@ function DatepickerPopupContent(props: DatePickerPopupContentProps) {
           {dateCells.map((cell) => {
             const isSelectedDate =
               cell.year === year && cell.month === month && cell.date === date;
+            const isTodayDate = isToday(cell);
             return (
               <div
                 key={`${cell.year}-${cell.month}-${cell.date}`}
-                className={cx(s['date-cells__item'], { selected: isSelectedDate })}
+                className={cx(s['date-cells__item'], {
+                  date: true,
+                  selected: isSelectedDate,
+                  today: isTodayDate,
+                  [cell.type]: !!cell.type,
+                })}
                 onClick={() => onDateSelect(cell)}
               >
                 {cell.date}
