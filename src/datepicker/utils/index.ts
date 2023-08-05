@@ -170,3 +170,12 @@ export function getDateFromCell(cell: DateCell) {
 
   return new Date(year, month, date);
 }
+
+export function isTodayCell(cell: DateCell) {
+  const today = new Date();
+  const isTodayDate =
+    today.getMonth() === cell.month &&
+    today.getFullYear() === cell.year &&
+    today.getDate() === cell.date;
+  return isTodayDate;
+}
