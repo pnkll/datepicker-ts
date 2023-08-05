@@ -5,5 +5,12 @@ export function App() {
 
   console.log({ date });
 
-  return <Datepicker value={date} onChange={setDate} />;
+  return (
+    <Datepicker
+      value={date}
+      onChange={setDate}
+      min={new Date(2023, 5, 8)}
+      max={new Date(2023, 9, 4)}
+    />
+  );
 }

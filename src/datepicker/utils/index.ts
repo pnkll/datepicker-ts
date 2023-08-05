@@ -146,3 +146,27 @@ export function getDateFromInputValue(inputValue: string) {
 
   return dateObj;
 }
+
+export function isDateInRange(date: Date, min: Date, max: Date) {
+  if (min && max) return isSmallerThanDate(date, max) && isBiggerThanDate(date, min);
+
+  if (min) return isBiggerThanDate(date, min);
+
+  if (max) return isSmallerThanDate(date, max);
+
+  return true;
+}
+
+export function isBiggerThanDate(value: Date, date: Date) {
+  return value >= date;
+}
+
+export function isSmallerThanDate(value: Date, date: Date) {
+  return value <= date;
+}
+
+export function getDateFromCell(cell: DateCell) {
+  const { year, month, date } = cell;
+
+  return new Date(year, month, date);
+}

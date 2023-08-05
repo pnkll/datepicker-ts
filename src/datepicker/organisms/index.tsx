@@ -6,11 +6,13 @@ import {
   DateCell,
   daysOfTheWeek,
   getCurrentMonthDateCells,
+  getDateFromCell,
   getDateFromInputValue,
   getDaysAmountInAMonth,
   getInputValueFromDate,
   getNextMonthDateCells,
   getPrevMonthDateCells,
+  isDateInRange,
   isValidDateString,
   months,
 } from '../utils';
@@ -41,6 +43,12 @@ function isToday(cell: DateCell) {
   return isTodayDate;
 }
 
+/* TODO -
+  set value by isinrange - [done]
+  highlight input wrong value - [done]
+  style -
+ */
+
 export function Datepicker(props: DatepickerProps) {
   const { value, onChange, min, max } = props;
 
@@ -50,32 +58,44 @@ export function Datepicker(props: DatepickerProps) {
   const latestInputValue = useLatest(inputValue);
   const latestValue = useLatest(value);
 
+  function updateValueOnPopupCloseAction() {
+    setShowPopup(false);
+
+    const date = getDateFromInputValue(inputValue);
+
+    if (!date) setInputValue(getInputValueFromDate(value));
+
+    if (!isDateInRange(date, min, max)) return;
+
+    onChange(date);
+  }
+
   const elementRef = useRef<HTMLDivElement>(null);
   function onInputClick() {
     setShowPopup(true);
   }
+
+  const latestUpdateValueFromInput = useLatest(updateValueOnPopupCloseAction);
 
   function handleChange(value: Date) {
     onChange(value);
     setShowPopup(false);
   }
 
-  const inputValueDate = useMemo(() => {
-    return getDateFromInputValue(inputValue);
+  const [inputValueDate, isValidInputValue] = useMemo(() => {
+    const date = getDateFromInputValue(inputValue);
+
+    if (!date) return [undefined, false];
+
+    return [date, isDateInRange(date, min, max)];
   }, [inputValue]);
 
   function onBlur(): void {}
 
   function onKeyDown(e) {
     if (e.key !== 'Enter') return;
-    const date = getDateFromInputValue(inputValue);
 
-    if (!date) {
-      setInputValue(getInputValueFromDate(value));
-    } else {
-      handleChange(date);
-    }
-    setShowPopup(false);
+    updateValueOnPopupCloseAction();
   }
 
   function onInputChange(e) {
@@ -98,24 +118,19 @@ export function Datepicker(props: DatepickerProps) {
 
       if (element.contains(target)) return;
 
-      const dateFromInputValue = getDateFromInputValue(latestInputValue.current);
-      if (dateFromInputValue) {
-        onChange(dateFromInputValue);
-      } else {
-        setInputValue(getInputValueFromDate(latestValue.current));
-      }
-      setShowPopup(false);
+      latestUpdateValueFromInput.current();
     }
 
     document.addEventListener('click', onDocumentClick);
 
     return () => document.removeEventListener('click', onDocumentClick);
-  }, [latestInputValue, latestValue]);
+  }, [latestUpdateValueFromInput]);
 
   return (
     <>
       <div ref={elementRef} style={{ width: 'fit-content', position: 'relative' }}>
         <input
+          className={cx(s.input, { unvalid: !isValidInputValue })}
           type={'text'}
           onClick={onInputClick}
           value={inputValue}
@@ -237,6 +252,8 @@ function DatepickerPopupContent(props: DatePickerPopupContentProps) {
             const isSelectedDate =
               cell.year === year && cell.month === month && cell.date === date;
             const isTodayDate = isToday(cell);
+            const isInRange = isDateInRange(getDateFromCell(cell), min, max);
+
             return (
               <div
                 key={`${cell.year}-${cell.month}-${cell.date}`}
@@ -244,9 +261,10 @@ function DatepickerPopupContent(props: DatePickerPopupContentProps) {
                   date: true,
                   selected: isSelectedDate,
                   today: isTodayDate,
+                  isNotInRange: !isInRange,
                   [cell.type]: !!cell.type,
                 })}
-                onClick={() => onDateSelect(cell)}
+                onClick={() => isInRange && onDateSelect(cell)}
               >
                 {cell.date}
               </div>

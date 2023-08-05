@@ -20,10 +20,21 @@
     &.prev, &.next{
       background: darkgray;
     }
+
+    &.isNotInRange{
+      background: red;
+      cursor: not-allowed;
+    }
   }
 }
 
 .control-section{
   display: flex;
   gap: 10px;
+}
+
+.input{
+  &.unvalid{
+    outline-color: red;
+  }
 }
